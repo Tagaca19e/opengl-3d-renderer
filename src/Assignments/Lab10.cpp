@@ -1,9 +1,13 @@
+/**
+ * Lab10.cpp -- Raytracing
+ * Modified by: Eidmone Tagaca
+ * OpenGL Version: 4.1
+ * Date: 11/08/2023
+ */
+
 #include "Lab10.h"
-
 #include "Application.h"
-
 #include "Texture.h"
-
 #include "UIHelpers.h"
 
 MAKE_ENUM(RTColorMode, int, Default, Position, Normal);
@@ -59,7 +63,7 @@ void RayPlaneHit(const RaySceneObject& object, const Ray& ray, HitRecord& hr) {
 
 	float t = -(d + glm::dot(ray.p0, N)) / glm::dot(ray.R, N);
 
-  // TODO: implement ray-plane intersection test
+	// Implement the ray-plane intersection test.
 	if (t > 0 && t < hr.t) {
 		hr.hit = true;
 		hr.t = t;
@@ -85,27 +89,43 @@ void RayPlaneHit(const RaySceneObject& object, const Ray& ray, HitRecord& hr) {
 //
 //Solve for t using the quadratic formula :
 //t = (-b + / -sqrt(b ^ 2 - 4 * a * c)) / (2 * a)
-void RaySphereHit(const RaySceneObject& object, const Ray& ray, HitRecord& hr) {
+void RaySphereHit(const RaySceneObject &object, const Ray &ray, HitRecord &hr) {
+  vec3 C = object.transform.translation;
+  float r = object.data.w;
 
-	vec3 C = object.transform.translation;
-	float r = object.data.w;
+  if (r <= 0)
+    return;
 
-	if (r <= 0) return;
+  // Calculate coefficients for the quadratic equation.
+  float a = glm::dot(ray.R, ray.R);
+  float b = 2.0f * glm::dot(ray.R, ray.p0 - C);
+  float c = glm::dot(ray.p0 - C, ray.p0 - C) - r * r;
 
-	float a = glm::dot(ray.R, ray.R);
-	float b = 2 * glm::dot(ray.R, ray.p0 - C);
-	float c = glm::dot(ray.p0 - C, ray.p0 - C) - r * r;
+  // Calculate the discriminant (b^2-4ac part).
+  float discriminant = b * b - 4 * a * c;
 
-	float t = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+	// Skip when roots are imaginary.
+	if (discriminant >= 0) {
+    // Calculate two possible solutions for t.
+    float t1 = (-b + sqrt(discriminant)) / (2 * a);
+    float t2 = (-b - sqrt(discriminant)) / (2 * a);
 
-  // TODO: implement ray-sphere intersection
-  if (t > 0 && t < hr.t) {
-		hr.hit = true;
-		hr.t = t;
-		hr.object = &object;
-		hr.position = ray.p0 + t * ray.R;
-		hr.normal = glm::normalize(hr.position - C);
-	}
+    if (t1 >= 0 && t1 < hr.t) {
+      hr.hit = true;
+      hr.t = t1;
+      hr.object = &object;
+      hr.position = ray.p0 + t1 * ray.R;
+      hr.normal = glm::normalize(hr.position - C);
+    }
+
+    if (t2 >= 0 && t2 < hr.t) {
+      hr.hit = true;
+      hr.t = t2;
+      hr.object = &object;
+      hr.position = ray.p0 + t2 * ray.R;
+      hr.normal = glm::normalize(hr.position - C);
+    }
+  }
 }
 
 void RaySceneObject::hit(const Ray& ray, HitRecord& hr) {
@@ -232,27 +252,27 @@ void RayTracer::render(s_ptr<Texture> screen) {
 				if (colorMode == +RTColorMode::Default) {
 					color = vec4(hr.object->material.Kd, 1.0f);
 
-					// TODO: use the intersection result data to compute Phong or Blinn-Phong shading.
-					vec3 N = hr.normal;
+					// Use the intersection result data to compute Phong or Blinn-Phong shading.
+					vec3 viewDir = glm::normalize(camera.cameraPosition - hr.position);
+					vec3 normal = glm::normalize(hr.normal);
 
+					// Ambient light.
 					vec3 ambient = light.Ia * light.Ka * vec3(color);
 
-					// Light direction
-					vec3 L = glm::normalize(light.lightDirection);
+					// Diffuse.
+					vec3 norm = glm::normalize(hr.normal);
+					vec3 lightDir = glm::normalize(light.lightDirection);
+					float diffuse = glm::max(glm::dot(norm, -lightDir), 0.0f);
+					vec3 diffuseColor = light.Id * light.Kd * diffuse * vec3(color);
 
-					// View vector
-					vec3 V = glm::normalize(camera.cameraPosition - hr.position);
+					// Halfway vector.
+					vec3 halfway = glm::normalize(-lightDir + viewDir);
 
-					// Halfway vector
-					vec3 H = glm::normalize(L + V);
-					float diffuse = glm::max(glm::dot(N, L), 0.0f);
-					vec3 diffuseColor = hr.object->material.Kd * light.Id * diffuse * vec3(color);
-
-					float specular = glm::pow(glm::max(glm::dot(N, H), 0.0f), hr.object->material.reflective);
+					float specular = glm::pow(glm::max(glm::dot(norm, halfway), 0.0f), light.shininess);
 					vec3 specularColor = light.Id * light.Ks * specular * vec3(color);
 
 					vec3 finalColor = ambient + diffuseColor + specularColor;
-					color = vec4(finalColor, color.a);
+					color = vec4(finalColor, 1.0f);
 				}
 				// These can be useful for debugging - they set the pixel color to the position or the normal
 				// seen at the intersection point. 

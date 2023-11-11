@@ -35,9 +35,9 @@ void Application::init(GLFWwindow* w)
 
 	window = w;
 
-	renderer = std::make_shared<SoftwareRenderer>();
-	//renderer = std::make_shared<OpenGLRenderer>();
-	//OGLRenderer = std::make_shared<OpenGLRenderer>();
+	// renderer = std::make_shared<SoftwareRenderer>();
+	renderer = std::make_shared<OpenGLRenderer>();
+	// OGLRenderer = std::make_shared<OpenGLRenderer>();
 
 	if (!renderer) {
 		log("Unable to initialize renderer!\n");
@@ -64,8 +64,8 @@ void Application::init(GLFWwindow* w)
 	assignments.push_back(std::make_shared<Lab05>());*/
 	//assignments.push_back(std::make_shared<Lab06>());
 	//assignments.push_back(std::make_shared<Lab07>());
-	//assignments.push_back(std::make_shared<Lab08>());
-	assignments.push_back(std::make_shared<RayTracer>());
+	assignments.push_back(std::make_shared<Lab08>());
+	// assignments.push_back(std::make_shared<RayTracer>());
 
 	log("Ready to rock!\n");
 }

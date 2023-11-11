@@ -1,0 +1,9 @@
+.history
+
+# binaries
+/obj
+/bin
+
+# misc
+.DS_Store
+

@@ -11,263 +11,275 @@
 #include "Texture.h"
 #include "UIHelpers.h"
 
-#include "imgui.h"
 #include "ImGuiFileDialog.h"
+#include "imgui.h"
+
 
 struct OBJMeshVertex {
-	vec3 position;
-	vec3 normal;
-	vec2 texCoord;		// unused for this lab
-	vec3 tangent;
-	vec3 bitangent;
+  vec3 position;
+  vec3 normal;
+  vec2 texCoord;
+  vec3 tangent;
+  vec3 bitangent;
 };
 
 struct OBJMesh {
-	std::vector<OBJMeshVertex> vertices;
-	std::vector<GLuint> indices;
+  std::vector<OBJMeshVertex> vertices;
+  std::vector<GLuint> indices;
 
-	GLuint VAO = 0;
-	GLuint VBO = 0;
-	GLuint IBO = 0;
+  GLuint VAO = 0;
+  GLuint VBO = 0;
+  GLuint IBO = 0;
 
-	bool isValid() {
-		return VAO != 0 && VBO != 0 && IBO != 0 && !vertices.empty() && !indices.empty();
-	}
+  bool isValid() {
+    return VAO != 0 && VBO != 0 && IBO != 0 && !vertices.empty() &&
+           !indices.empty();
+  }
 
-	static OBJMesh import(const char* objFile, GLuint shaderProgram) {
-		OBJMesh mesh;
+  static OBJMesh import(const char *objFile, GLuint shaderProgram) {
+    OBJMesh mesh;
 
-		std::ifstream fin(objFile);
+    std::ifstream fin(objFile);
 
-		if (!fin) {
-			log("Error creating input stream on {0}\n", objFile);
-			return mesh;
-		}
+    if (!fin) {
+      log("Error creating input stream on {0}\n", objFile);
+      return mesh;
+    }
 
-		std::string line;
+    std::string line;
 
-		std::vector<vec3> vertices;
-		std::vector<vec3> normals;
-		std::vector<vec2> texCoords;
+    std::vector<vec3> vertices;
+    std::vector<vec3> normals;
+    std::vector<vec2> texCoords;
 
-		GLuint faceIndex = 0;
+    GLuint faceIndex = 0;
 
-		while (std::getline(fin, line)) {
-			//log("{0}\n", line);
+    while (std::getline(fin, line)) {
+      // log("{0}\n", line);
 
-			auto lineEntries = StringUtil::split(line, ' ');
+      auto lineEntries = StringUtil::split(line, ' ');
 
-			if (lineEntries.empty()) continue;
+      if (lineEntries.empty())
+        continue;
 
-			if (lineEntries[0] == "v" || lineEntries[0] == "vn") {
-				vec3 v;
-				v[0] = std::atof(lineEntries[1].c_str());
-				v[1] = std::atof(lineEntries[2].c_str());
-				v[2] = std::atof(lineEntries[3].c_str());
+      if (lineEntries[0] == "v" || lineEntries[0] == "vn") {
+        vec3 v;
+        v[0] = std::atof(lineEntries[1].c_str());
+        v[1] = std::atof(lineEntries[2].c_str());
+        v[2] = std::atof(lineEntries[3].c_str());
 
-				if (lineEntries[0] == "v") {
-					//log("Vertex {0}: {1}\n", vertices.size(), glm::to_string(v));
-					vertices.push_back(v);
-				}
-				else if (lineEntries[0] == "vn") {
-					//log("Normal {0}: {1}\n", normals.size(), glm::to_string(v));
-					normals.push_back(v);
-				}
-			}
-			else  if (lineEntries[0] == "vt") {
-				vec2 uv;
-				uv[0] = std::atof(lineEntries[1].c_str());
-				uv[1] = std::atof(lineEntries[2].c_str());
+        if (lineEntries[0] == "v") {
+          // log("Vertex {0}: {1}\n", vertices.size(), glm::to_string(v));
+          vertices.push_back(v);
+        } else if (lineEntries[0] == "vn") {
+          // log("Normal {0}: {1}\n", normals.size(), glm::to_string(v));
+          normals.push_back(v);
+        }
+      } else if (lineEntries[0] == "vt") {
+        vec2 uv;
+        uv[0] = std::atof(lineEntries[1].c_str());
+        uv[1] = std::atof(lineEntries[2].c_str());
 
-				texCoords.push_back(uv);
-			}
-			else if (lineEntries[0] == "f") {
-				//log("Face: {0}\n", line);
+        texCoords.push_back(uv);
+      } else if (lineEntries[0] == "f") {
+        // log("Face: {0}\n", line);
 
-				if (StringUtil::contains(line, "/")) {
-					for (int i = 1; i < lineEntries.size(); i++) {
-						int positionIndex = -1, normalIndex = -1, texCoordIndex = -1;
+        if (StringUtil::contains(line, "/")) {
+          for (int i = 1; i < lineEntries.size(); i++) {
+            int positionIndex = -1, normalIndex = -1, texCoordIndex = -1;
 
-						auto faceComponents = StringUtil::split(lineEntries[i], '/', false);
+            auto faceComponents = StringUtil::split(lineEntries[i], '/', false);
 
-						if (faceComponents.size() == 2) {
-							positionIndex = std::stoi(faceComponents[0]) - 1;
-							texCoordIndex = std::stoi(faceComponents[1]) - 1;
-						}
-						else if (faceComponents.size() == 3) {
-							positionIndex = std::stoi(faceComponents[0]) - 1;
-							if (faceComponents[1] != "") {
-								texCoordIndex = std::stoi(faceComponents[1]) - 1;
-							}
-							normalIndex = std::stoi(faceComponents[2]) - 1;
-						}
+            if (faceComponents.size() == 2) {
+              positionIndex = std::stoi(faceComponents[0]) - 1;
+              texCoordIndex = std::stoi(faceComponents[1]) - 1;
+            } else if (faceComponents.size() == 3) {
+              positionIndex = std::stoi(faceComponents[0]) - 1;
+              if (faceComponents[1] != "") {
+                texCoordIndex = std::stoi(faceComponents[1]) - 1;
+              }
+              normalIndex = std::stoi(faceComponents[2]) - 1;
+            }
 
-						OBJMeshVertex omv;
-						omv.position = vertices[positionIndex];
-						if (normals.empty()) {
-							omv.normal = glm::normalize(omv.position);
-						}
-						else {
-							omv.normal = normals[normalIndex];
-						}
+            OBJMeshVertex omv;
+            omv.position = vertices[positionIndex];
+            if (normals.empty()) {
+              omv.normal = glm::normalize(omv.position);
+            } else {
+              omv.normal = normals[normalIndex];
+            }
 
-						if (texCoordIndex > -1) {
-							omv.texCoord = texCoords[texCoordIndex];
-						}
+            if (texCoordIndex > -1) {
+              omv.texCoord = texCoords[texCoordIndex];
+            }
 
-						mesh.vertices.push_back(omv);
-						mesh.indices.push_back(faceIndex++);
-					}
+            mesh.vertices.push_back(omv);
+            mesh.indices.push_back(faceIndex++);
+          }
 
-					// 2 tris per face (quad)
-					if (lineEntries.size() == 5) {
-						// Turn (0, 1, 2, 3) into two separate tris: (0, 1, 2) and (2, 3, 0).
-						// (0, 1, 2) is already in the mesh.
-						// Create (2, 3, 0);
+          // 2 tris per face (quad)
+          if (lineEntries.size() == 5) {
+            // Turn (0, 1, 2, 3) into two separate tris: (0, 1, 2) and (2, 3,
+            // 0). (0, 1, 2) is already in the mesh. Create (2, 3, 0);
 
-						// Get vertex 3 which has already been pushed on.
-						auto v3 = mesh.vertices.back();
-						mesh.vertices.pop_back();
+            // Get vertex 3 which has already been pushed on.
+            auto v3 = mesh.vertices.back();
+            mesh.vertices.pop_back();
 
-						// Get vertex 2 which has to be copied
-						auto v2 = mesh.vertices.back();
+            // Get vertex 2 which has to be copied
+            auto v2 = mesh.vertices.back();
 
-						// Get vertex 0 which is 2 behind this one
-						auto v0 = mesh.vertices[mesh.vertices.size() - 3];
-						mesh.vertices.push_back(v2);
-						mesh.vertices.push_back(v3);
-						mesh.vertices.push_back(v0);
-						mesh.indices.push_back(faceIndex++);
-						mesh.indices.push_back(faceIndex++);
-					}
-					
+            // Get vertex 0 which is 2 behind this one
+            auto v0 = mesh.vertices[mesh.vertices.size() - 3];
+            mesh.vertices.push_back(v2);
+            mesh.vertices.push_back(v3);
+            mesh.vertices.push_back(v0);
+            mesh.indices.push_back(faceIndex++);
+            mesh.indices.push_back(faceIndex++);
+          }
 
-					// Compute tangent and bitangent vectors from the last 3 entries.
-					size_t nv = mesh.vertices.size();
-					vec3 pos1 = mesh.vertices[nv - 3].position;
-					vec3 pos2 = mesh.vertices[nv - 2].position;
-					vec3 pos3 = mesh.vertices[nv - 1].position;
-					vec2 uv1 = mesh.vertices[nv - 3].texCoord;
-					vec2 uv2 = mesh.vertices[nv - 2].texCoord;
-					vec2 uv3 = mesh.vertices[nv - 1].texCoord;
-					vec3 edge1 = pos2 - pos1;
-					vec3 edge2 = pos3 - pos1;
-					vec2 deltaUV1 = uv2 - uv1;
-					vec2 deltaUV2 = uv3 - uv1;
-					float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-					vec3 tangent;
-					vec3 bitangent;
-					tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-					tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-					tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-					bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-					bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-					bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+          // Compute tangent and bitangent vectors from the last 3 entries.
+          size_t nv = mesh.vertices.size();
+          vec3 pos1 = mesh.vertices[nv - 3].position;
+          vec3 pos2 = mesh.vertices[nv - 2].position;
+          vec3 pos3 = mesh.vertices[nv - 1].position;
+          vec2 uv1 = mesh.vertices[nv - 3].texCoord;
+          vec2 uv2 = mesh.vertices[nv - 2].texCoord;
+          vec2 uv3 = mesh.vertices[nv - 1].texCoord;
+          vec3 edge1 = pos2 - pos1;
+          vec3 edge2 = pos3 - pos1;
+          vec2 deltaUV1 = uv2 - uv1;
+          vec2 deltaUV2 = uv3 - uv1;
+          float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+          vec3 tangent;
+          vec3 bitangent;
+          tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+          tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+          tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+          bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+          bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+          bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
 
-					for (int i = 3; i > 0; i--) {
-						mesh.vertices[nv - i].tangent = tangent;
-						mesh.vertices[nv - i].bitangent = bitangent;
-					}
-				}
-				else {
-					for (int i = 1; i < lineEntries.size(); i++) {
+          for (int i = 3; i > 0; i--) {
+            mesh.vertices[nv - i].tangent = tangent;
+            mesh.vertices[nv - i].bitangent = bitangent;
+          }
+        } else {
+          for (int i = 1; i < lineEntries.size(); i++) {
 
-						int positionIndex = std::stoi(lineEntries[i]) - 1;
+            int positionIndex = std::stoi(lineEntries[i]) - 1;
 
-						OBJMeshVertex omv;
-						omv.position = vertices[positionIndex];
-						omv.normal = vec3(0.f);
+            OBJMeshVertex omv;
+            omv.position = vertices[positionIndex];
+            omv.normal = vec3(0.f);
 
-						mesh.vertices.push_back(omv);
-						mesh.indices.push_back(faceIndex++);
-					}
-				}
+            mesh.vertices.push_back(omv);
+            mesh.indices.push_back(faceIndex++);
+          }
+        }
+      }
+    }
 
+    glGenVertexArrays(1, &mesh.VAO);
+    glBindVertexArray(mesh.VAO);
 
-			}
-		}
+    glGenBuffers(1, &mesh.VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(OBJMeshVertex) * mesh.vertices.size(),
+                 (const void *)mesh.vertices.data(), GL_STATIC_DRAW);
 
-		glGenVertexArrays(1, &mesh.VAO);
-		glBindVertexArray(mesh.VAO);
+    GLint positionLocation = glGetAttribLocation(shaderProgram, "vPosition");
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(OBJMeshVertex),
+                          (const void *)offsetof(OBJMeshVertex, position));
+    glEnableVertexAttribArray(positionLocation);
 
-		glGenBuffers(1, &mesh.VBO);
-		glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(OBJMeshVertex) * mesh.vertices.size(), (const void*)mesh.vertices.data(), GL_STATIC_DRAW);
+    GLint normalLocation = glGetAttribLocation(shaderProgram, "vNormal");
+    glVertexAttribPointer(normalLocation, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(OBJMeshVertex),
+                          (const void *)offsetof(OBJMeshVertex, normal));
+    glEnableVertexAttribArray(normalLocation);
 
-		GLint positionLocation = glGetAttribLocation(shaderProgram, "vPosition");
-		glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, position));
-		glEnableVertexAttribArray(positionLocation);
+    GLint texCoordLocation = glGetAttribLocation(shaderProgram, "texCoord");
+    glVertexAttribPointer(texCoordLocation, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(OBJMeshVertex),
+                          (const void *)offsetof(OBJMeshVertex, texCoord));
+    glEnableVertexAttribArray(texCoordLocation);
 
-		GLint normalLocation = glGetAttribLocation(shaderProgram, "vNormal");
-		glVertexAttribPointer(normalLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, normal));
-		glEnableVertexAttribArray(normalLocation);
+    GLint tanLocation = glGetAttribLocation(shaderProgram, "vTangent");
+    if (tanLocation > -1) {
+      glVertexAttribPointer(tanLocation, 3, GL_FLOAT, GL_FALSE,
+                            sizeof(OBJMeshVertex),
+                            (const void *)offsetof(OBJMeshVertex, tangent));
+      glEnableVertexAttribArray(tanLocation);
+    }
 
-		GLint texCoordLocation = glGetAttribLocation(shaderProgram, "texCoord");
-		glVertexAttribPointer(texCoordLocation, 2, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, texCoord));
-		glEnableVertexAttribArray(texCoordLocation);
+    GLint bitanLocation = glGetAttribLocation(shaderProgram, "vBitangent");
+    if (bitanLocation > -1) {
+      glVertexAttribPointer(bitanLocation, 3, GL_FLOAT, GL_FALSE,
+                            sizeof(OBJMeshVertex),
+                            (const void *)offsetof(OBJMeshVertex, bitangent));
+      glEnableVertexAttribArray(bitanLocation);
+    }
 
-		GLint tanLocation = glGetAttribLocation(shaderProgram, "vTangent");
-		if (tanLocation > -1) {
-			glVertexAttribPointer(tanLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, tangent));
-			glEnableVertexAttribArray(tanLocation);
-		}
+    glGenBuffers(1, &mesh.IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.IBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * mesh.indices.size(),
+                 (const void *)mesh.indices.data(), GL_STATIC_DRAW);
 
-		GLint bitanLocation = glGetAttribLocation(shaderProgram, "vBitangent");
-		if (bitanLocation > -1) {
-			glVertexAttribPointer(bitanLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, bitangent));
-			glEnableVertexAttribArray(bitanLocation);
-		}
-		
+    glBindVertexArray(0);
 
-		glGenBuffers(1, &mesh.IBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.IBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * mesh.indices.size(), (const void*)mesh.indices.data(), GL_STATIC_DRAW);
+    return mesh;
+  }
 
-		glBindVertexArray(0);
+  static OBJMesh getSphere(GLuint shaderProgram) {
+    OBJMesh sphere;
+    glGenVertexArrays(1, &sphere.VAO);
+    glBindVertexArray(sphere.VAO);
 
-		return mesh;
-	}
+    glGenBuffers(1, &sphere.VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere.VBO);
 
-	static OBJMesh getSphere(GLuint shaderProgram) {
-		OBJMesh sphere;
-		glGenVertexArrays(1, &sphere.VAO);
-		glBindVertexArray(sphere.VAO);
+    for (auto &vertex : Sphere::instance.positions) {
+      OBJMeshVertex omv;
+      omv.position = vertex;
+      omv.normal = glm::normalize(omv.position);
 
-		glGenBuffers(1, &sphere.VBO);
-		glBindBuffer(GL_ARRAY_BUFFER, sphere.VBO);
+      sphere.vertices.push_back(omv);
+    }
 
-		for (auto& vertex : Sphere::instance.positions) {
-			OBJMeshVertex omv;
-			omv.position = vertex;
-			omv.normal = glm::normalize(omv.position);
+    glBufferData(GL_ARRAY_BUFFER,
+                 sizeof(OBJMeshVertex) * sphere.vertices.size(),
+                 (const void *)sphere.vertices.data(), GL_STATIC_DRAW);
 
-			sphere.vertices.push_back(omv);
-		}
+    glGenBuffers(1, &sphere.IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere.IBO);
+    for (auto &tri : Sphere::instance.indices) {
+      for (int i = 0; i < 3; i++) {
+        sphere.indices.push_back(tri[i]);
+      }
+    }
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(OBJMeshVertex) * sphere.vertices.size(), (const void*)sphere.vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 sizeof(GLuint) * sphere.indices.size(),
+                 (const void *)sphere.indices.data(), GL_STATIC_DRAW);
 
-		glGenBuffers(1, &sphere.IBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere.IBO);
-		for (auto& tri : Sphere::instance.indices) {
-			for (int i = 0; i < 3; i++) {
-				sphere.indices.push_back(tri[i]);
-			}
-		}
+    GLint positionLocation = glGetAttribLocation(shaderProgram, "vPosition");
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(OBJMeshVertex),
+                          (const void *)offsetof(OBJMeshVertex, position));
+    glEnableVertexAttribArray(positionLocation);
 
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * sphere.indices.size(), (const void*)sphere.indices.data(), GL_STATIC_DRAW);
+    GLint normalLocation = glGetAttribLocation(shaderProgram, "vNormal");
+    glVertexAttribPointer(normalLocation, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(OBJMeshVertex),
+                          (const void *)offsetof(OBJMeshVertex, normal));
+    glEnableVertexAttribArray(normalLocation);
 
-		GLint positionLocation = glGetAttribLocation(shaderProgram, "vPosition");
-		glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, position));
-		glEnableVertexAttribArray(positionLocation);
+    glBindVertexArray(0);
 
-		GLint normalLocation = glGetAttribLocation(shaderProgram, "vNormal");
-		glVertexAttribPointer(normalLocation, 3, GL_FLOAT, GL_FALSE, sizeof(OBJMeshVertex), (const void*)offsetof(OBJMeshVertex, normal));
-		glEnableVertexAttribArray(normalLocation);
-
-		glBindVertexArray(0);
-
-		return sphere;
-	}
+    return sphere;
+  }
 };
 
 std::vector<OBJMesh> meshes;
@@ -282,7 +294,7 @@ GLuint normalTextureID = 0;
 // TODO: update the vertex and fragment shaders to use Blinn-Phong shading.
 void Lab08::init() {
 
-	const char* Lab08VertexShaderSrc = R"VERTEXSHADER(
+  const char *Lab08VertexShaderSrc = R"VERTEXSHADER(
 __VERSION__
 
 uniform mat4 mvp;
@@ -316,7 +328,7 @@ void main() {
 
 )VERTEXSHADER";
 
-	const char* Lab08FragmentShaderSrc = R"FRAGMENTSHADER(
+  const char *Lab08FragmentShaderSrc = R"FRAGMENTSHADER(
 __VERSION__
 
 uniform vec4 color;
@@ -390,249 +402,267 @@ void main() {
 
 )FRAGMENTSHADER";
 
-	if (!shader.init(Lab08VertexShaderSrc, Lab08FragmentShaderSrc)) {
-		exit(1);
-	}
+  if (!shader.init(Lab08VertexShaderSrc, Lab08FragmentShaderSrc)) {
+    exit(1);
+  }
 
-	// Default sphere mesh
-	OBJMesh sphereMesh = OBJMesh::getSphere(shader.program);
-	meshes.push_back(sphereMesh);
+  // Default sphere mesh
+  OBJMesh sphereMesh = OBJMesh::getSphere(shader.program);
+  meshes.push_back(sphereMesh);
 
-	addSceneObject();
+  addSceneObject();
 
-	initialized = true;
+  initialized = true;
 }
 
 // Renders to the "screen" texture that has been passed in as a parameter
 void Lab08::render(s_ptr<Framebuffer> framebuffer) {
-	if (!initialized) init();
+  if (!initialized)
+    init();
 
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LESS);
 
-	double deltaTime = Application::get().deltaTime;
-	double timeSinceStart = Application::get().timeSinceStart;
+  double deltaTime = Application::get().deltaTime;
+  double timeSinceStart = Application::get().timeSinceStart;
 
-	glUseProgram(shader.program);
+  glUseProgram(shader.program);
 
-	OBJMesh* activeMesh = &meshes[activeMeshIndex];
-	glBindVertexArray(activeMesh->VAO);
+  OBJMesh *activeMesh = &meshes[activeMeshIndex];
+  glBindVertexArray(activeMesh->VAO);
 
-	camera.update(float(framebuffer->width), float(framebuffer->height));
+  camera.update(float(framebuffer->width), float(framebuffer->height));
 
-	if (light.autoOrbit) {
-		vec3 forward = vec3(0, 0, -1);
+  if (light.autoOrbit) {
+    vec3 forward = vec3(0, 0, -1);
 
-		if (glm::abs(glm::dot(forward, light.orbitAxis)) > 0.99f) {
-			forward = vec3(1, 0, 0);
-		}
+    if (glm::abs(glm::dot(forward, light.orbitAxis)) > 0.99f) {
+      forward = vec3(1, 0, 0);
+    }
 
-		mat4 orbit = glm::rotate((float)timeSinceStart, light.orbitAxis);
+    mat4 orbit = glm::rotate((float)timeSinceStart, light.orbitAxis);
 
-		light.lightDirection = orbit * vec4(forward, 0);
-	}
+    light.lightDirection = orbit * vec4(forward, 0);
+  }
 
-	mat4 vp = camera.projection * camera.view;
+  mat4 vp = camera.projection * camera.view;
 
-	for (auto& sceneObject : sceneObjects) {
-		/*if (glm::length(vec3(sceneObject.transform.rotation)) > 0.f) {
-			sceneObject.transform.rotation.w += deltaTime;
-		}*/
-		mat4 model = sceneObject.transform.getMatrixGLM();
-		mat4 mvp = vp * model;
+  for (auto &sceneObject : sceneObjects) {
+    /*if (glm::length(vec3(sceneObject.transform.rotation)) > 0.f) {
+            sceneObject.transform.rotation.w += deltaTime;
+    }*/
+    mat4 model = sceneObject.transform.getMatrixGLM();
+    mat4 mvp = vp * model;
 
-		GLuint mvpLocation = glGetUniformLocation(shader.program, "mvp");
-		glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
+    GLuint mvpLocation = glGetUniformLocation(shader.program, "mvp");
+    glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
 
-		GLuint modelLocation = glGetUniformLocation(shader.program, "model");
-		glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+    GLuint modelLocation = glGetUniformLocation(shader.program, "model");
+    glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-		mat4 normalMatrix = glm::transpose(glm::inverse(model));
-		GLuint normalMatrixLocation = glGetUniformLocation(shader.program, "normalMatrix");
-		glUniformMatrix4fv(normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    mat4 normalMatrix = glm::transpose(glm::inverse(model));
+    GLuint normalMatrixLocation =
+        glGetUniformLocation(shader.program, "normalMatrix");
+    glUniformMatrix4fv(normalMatrixLocation, 1, GL_FALSE,
+                       glm::value_ptr(normalMatrix));
 
-		// TODO: update uniform variables in shader required for Blinn-Phong shading.
-		// Ambient light intensity and color are already being passed in.
-		GLint iaLocation = glGetUniformLocation(shader.program, "Ia");
-		glUniform1f(iaLocation, light.Ia);
+    // TODO: update uniform variables in shader required for Blinn-Phong
+    // shading. Ambient light intensity and color are already being passed in.
+    GLint iaLocation = glGetUniformLocation(shader.program, "Ia");
+    glUniform1f(iaLocation, light.Ia);
 
-		GLint kaLocation = glGetUniformLocation(shader.program, "Ka");
-		glUniform3fv(kaLocation, 1, glm::value_ptr(light.Ka));
+    GLint kaLocation = glGetUniformLocation(shader.program, "Ka");
+    glUniform3fv(kaLocation, 1, glm::value_ptr(light.Ka));
 
-		// Diffuse
-		GLint idLocation = glGetUniformLocation(shader.program, "Id");
-		glUniform1f(idLocation, light.Id);
+    // Diffuse
+    GLint idLocation = glGetUniformLocation(shader.program, "Id");
+    glUniform1f(idLocation, light.Id);
 
-		GLint kdLocation = glGetUniformLocation(shader.program, "Kd");
-		glUniform3fv(kdLocation, 1, glm::value_ptr(light.Kd));
+    GLint kdLocation = glGetUniformLocation(shader.program, "Kd");
+    glUniform3fv(kdLocation, 1, glm::value_ptr(light.Kd));
 
-		// Specular
-		GLint shineLocation = glGetUniformLocation(shader.program, "shininess");
-		glUniform1f(shineLocation, light.shininess);
+    // Specular
+    GLint shineLocation = glGetUniformLocation(shader.program, "shininess");
+    glUniform1f(shineLocation, light.shininess);
 
-		GLint ksLocation = glGetUniformLocation(shader.program, "Ks");
-		glUniform3fv(ksLocation, 1, glm::value_ptr(light.Ks));
+    GLint ksLocation = glGetUniformLocation(shader.program, "Ks");
+    glUniform3fv(ksLocation, 1, glm::value_ptr(light.Ks));
 
-		GLint lightDirLocation = glGetUniformLocation(shader.program, "lightDirection");
-		glUniform3fv(lightDirLocation, 1, glm::value_ptr(light.lightDirection));
+    GLint lightDirLocation =
+        glGetUniformLocation(shader.program, "lightDirection");
+    glUniform3fv(lightDirLocation, 1, glm::value_ptr(light.lightDirection));
 
-		GLint camPosLocation = glGetUniformLocation(shader.program, "cameraPosition");
-		glUniform3fv(camPosLocation, 1, glm::value_ptr(camera.cameraPosition));
+    GLint camPosLocation =
+        glGetUniformLocation(shader.program, "cameraPosition");
+    glUniform3fv(camPosLocation, 1, glm::value_ptr(camera.cameraPosition));
 
-		GLint colorLocation = glGetUniformLocation(shader.program, "color");
-		glUniform4fv(colorLocation, 1, glm::value_ptr(sceneObject.color));
+    GLint colorLocation = glGetUniformLocation(shader.program, "color");
+    glUniform4fv(colorLocation, 1, glm::value_ptr(sceneObject.color));
 
-		if (useTexture) {
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, textureID);
-			
+    if (useTexture) {
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, textureID);
 
-			if (OpenGLRenderer::instance->textures.find(textureID) != OpenGLRenderer::instance->textures.end()) {
-				auto texture = OpenGLRenderer::instance->textures[textureID];
+      if (OpenGLRenderer::instance->textures.find(textureID) !=
+          OpenGLRenderer::instance->textures.end()) {
+        auto texture = OpenGLRenderer::instance->textures[textureID];
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, texture->wrapS._to_integral());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, texture->wrapT._to_integral());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, texture->minFilter._to_integral());
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, texture->magFilter._to_integral());
-			}
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                        texture->wrapS._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                        texture->wrapT._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        texture->minFilter._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        texture->magFilter._to_integral());
+      }
 
-			if (useNormalTexture) {
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, normalTextureID);
-				
+      if (useNormalTexture) {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, normalTextureID);
 
-				if (OpenGLRenderer::instance->textures.find(normalTextureID) != OpenGLRenderer::instance->textures.end()) {
-					auto normalTexture = OpenGLRenderer::instance->textures[normalTextureID];
+        if (OpenGLRenderer::instance->textures.find(normalTextureID) !=
+            OpenGLRenderer::instance->textures.end()) {
+          auto normalTexture =
+              OpenGLRenderer::instance->textures[normalTextureID];
 
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, normalTexture->wrapS._to_integral());
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, normalTexture->wrapT._to_integral());
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, normalTexture->minFilter._to_integral());
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, normalTexture->magFilter._to_integral());
-				}
-			}
-			else {
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, 0);
-			}
-		}
-		else {
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, 0);
-		}
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                          normalTexture->wrapS._to_integral());
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                          normalTexture->wrapT._to_integral());
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                          normalTexture->minFilter._to_integral());
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                          normalTexture->magFilter._to_integral());
+        }
+      } else {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, 0);
+      }
+    } else {
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
 
-		GLint useTexLocation = glGetUniformLocation(shader.program, "useTexture");
-		glUniform1i(useTexLocation, (GLint)useTexture);
+    GLint useTexLocation = glGetUniformLocation(shader.program, "useTexture");
+    glUniform1i(useTexLocation, (GLint)useTexture);
 
-		GLint useNormalTexLocation = glGetUniformLocation(shader.program, "useNormalTexture");
-		glUniform1i(useNormalTexLocation, (GLint)useNormalTexture);
+    GLint useNormalTexLocation =
+        glGetUniformLocation(shader.program, "useNormalTexture");
+    glUniform1i(useNormalTexLocation, (GLint)useNormalTexture);
 
-		glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT, 0);
-	}
+    glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT,
+                   0);
+  }
 }
 
 void Lab08::renderUI() {
 
-	ImGui::Checkbox("Use texture", &useTexture);
-	if (useTexture) {
-		int texID = textureID;
-		if (ImGui::InputInt("Texture ID", &texID)) {
-			textureID = texID;
-		}
-	}
+  ImGui::Checkbox("Use texture", &useTexture);
+  if (useTexture) {
+    int texID = textureID;
+    if (ImGui::InputInt("Texture ID", &texID)) {
+      textureID = texID;
+    }
+  }
 
-	ImGui::Checkbox("Use normal texture", &useNormalTexture);
-	if (useNormalTexture) {
-		int texID = normalTextureID;
-		if (ImGui::InputInt("Normal Texture ID", &texID)) {
-			normalTextureID = texID;
-		}
-	}
+  ImGui::Checkbox("Use normal texture", &useNormalTexture);
+  if (useNormalTexture) {
+    int texID = normalTextureID;
+    if (ImGui::InputInt("Normal Texture ID", &texID)) {
+      normalTextureID = texID;
+    }
+  }
 
+  int numMeshes = meshes.size();
+  ImGui::Text("Number of meshes: %d", numMeshes);
 
-	int numMeshes = meshes.size();
-	ImGui::Text("Number of meshes: %d", numMeshes);
+  int meshMax = meshes.size() - 1;
 
-	int meshMax = meshes.size() - 1;
+  if (meshMax > 0) {
+    ImGui::SliderInt("Active mesh index", &activeMeshIndex, 0, meshMax);
+  }
 
-	if (meshMax > 0) {
-		ImGui::SliderInt("Active mesh index", &activeMeshIndex, 0, meshMax);
-	}
-	
-	if (ImGui::Button("Load model")) {
-		ImGuiFileDialog::Instance()->OpenDialog("ChooseOBJKey", "Choose OBJ", ".obj", ".");
-	}
+  if (ImGui::Button("Load model")) {
+    ImGuiFileDialog::Instance()->OpenDialog("ChooseOBJKey", "Choose OBJ",
+                                            ".obj", ".");
+  }
 
-	light.renderUI();
-	camera.renderUI();
+  light.renderUI();
+  camera.renderUI();
 
-	if (ImGuiFileDialog::Instance()->Display("ChooseOBJKey")) {
-		if (ImGuiFileDialog::Instance()->IsOk()) {
-			std::string objFile = ImGuiFileDialog::Instance()->GetFilePathName();
-			OBJMesh loadedMesh = OBJMesh::import(objFile.c_str(), shader.program);
+  if (ImGuiFileDialog::Instance()->Display("ChooseOBJKey")) {
+    if (ImGuiFileDialog::Instance()->IsOk()) {
+      std::string objFile = ImGuiFileDialog::Instance()->GetFilePathName();
+      OBJMesh loadedMesh = OBJMesh::import(objFile.c_str(), shader.program);
 
-			if (loadedMesh.isValid()) {
-				meshes.push_back(loadedMesh);
-			}
+      if (loadedMesh.isValid()) {
+        meshes.push_back(loadedMesh);
+      }
 
-			ImGuiFileDialog::Instance()->Close();
-		}
-	}
+      ImGuiFileDialog::Instance()->Close();
+    }
+  }
 
-	if (ImGui::CollapsingHeader("Scene objects")) {
-		IMDENT;
+  if (ImGui::CollapsingHeader("Scene objects")) {
+    IMDENT;
 
-		static int numberToAdd = 10;
+    static int numberToAdd = 10;
 
-		if (ImGui::Button("Add new")) {
-			addSceneObject();
-		}
-		ImGui::SetNextItemWidth(200);
-		ImGui::InputInt("Number to add", &numberToAdd);
-		ImGui::SameLine();
-		std::string addRandomLabel = fmt::format("Add {0}", numberToAdd);
-		static vec2 scaleRange = vec2(0.1, 8.f);
-		if (ImGui::Button(addRandomLabel.c_str())) {
-			for (int i = 0; i < glm::max(numberToAdd, 0); i++) {
-				SceneObject newObject;
-				newObject.name = fmt::format("Object {0}", sceneObjects.size() + 1);
+    if (ImGui::Button("Add new")) {
+      addSceneObject();
+    }
+    ImGui::SetNextItemWidth(200);
+    ImGui::InputInt("Number to add", &numberToAdd);
+    ImGui::SameLine();
+    std::string addRandomLabel = fmt::format("Add {0}", numberToAdd);
+    static vec2 scaleRange = vec2(0.1, 8.f);
+    if (ImGui::Button(addRandomLabel.c_str())) {
+      for (int i = 0; i < glm::max(numberToAdd, 0); i++) {
+        SceneObject newObject;
+        newObject.name = fmt::format("Object {0}", sceneObjects.size() + 1);
 
-				newObject.transform.translation = glm::linearRand(vec3(-200), vec3(200));
-				newObject.transform.rotation = vec4(glm::sphericalRand(1.0f), glm::linearRand(0.f, glm::two_pi<float>()));
-				newObject.transform.scale = vec3(glm::linearRand(scaleRange.x, scaleRange.y));
-				newObject.color = glm::linearRand(vec3(0.1f), vec3(1.f));
+        newObject.transform.translation =
+            glm::linearRand(vec3(-200), vec3(200));
+        newObject.transform.rotation =
+            vec4(glm::sphericalRand(1.0f),
+                 glm::linearRand(0.f, glm::two_pi<float>()));
+        newObject.transform.scale =
+            vec3(glm::linearRand(scaleRange.x, scaleRange.y));
+        newObject.color = glm::linearRand(vec3(0.1f), vec3(1.f));
 
-				sceneObjects.push_back(newObject);
-			}
-		}
+        sceneObjects.push_back(newObject);
+      }
+    }
 
-		
-		ImGui::InputFloat2("Scale min/max", glm::value_ptr(scaleRange));
+    ImGui::InputFloat2("Scale min/max", glm::value_ptr(scaleRange));
 
-		if (sceneObjects.size() > 0) {
-			if (ImGui::Button("Clear all")) {
-				sceneObjects.clear();
-			}
+    if (sceneObjects.size() > 0) {
+      if (ImGui::Button("Clear all")) {
+        sceneObjects.clear();
+      }
 
-			int counter = 1;
+      int counter = 1;
 
-			ImGui::Text("Number of objects: %lu", sceneObjects.size());
+      ImGui::Text("Number of objects: %lu", sceneObjects.size());
 
-			auto soToDelete = sceneObjects.end();
-			for (auto it = sceneObjects.begin(); it != sceneObjects.end() && counter++ < 100; ++it) {
-				auto& cb = *it;
-				IMDENT;
-				cb.renderUI();
-				IMDONT;
-				if (cb.shouldDelete) {
-					soToDelete = it;
-				}
-			}
+      auto soToDelete = sceneObjects.end();
+      for (auto it = sceneObjects.begin();
+           it != sceneObjects.end() && counter++ < 100; ++it) {
+        auto &cb = *it;
+        IMDENT;
+        cb.renderUI();
+        IMDONT;
+        if (cb.shouldDelete) {
+          soToDelete = it;
+        }
+      }
 
-			if (soToDelete != sceneObjects.end()) {
-				sceneObjects.erase(soToDelete);
-			}
-		}
+      if (soToDelete != sceneObjects.end()) {
+        sceneObjects.erase(soToDelete);
+      }
+    }
 
-		IMDONT;
-	}
+    IMDONT;
+  }
 }
