@@ -533,6 +533,16 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
         log("normal Texture FOUND!!!!\n");
         validNormalTexture = true;
 
+        // Set texture parameters.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                        normalTexture->wrapS._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                        normalTexture->wrapT._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        normalTexture->minFilter._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        normalTexture->magFilter._to_integral());
+
         // Get the location of the normal map uniform .
         GLint normalTextureSamplerLocation =
             glGetUniformLocation(shader.program, "normalTexture");
