@@ -288,6 +288,7 @@ int activeMeshIndex = 0;
 
 bool useTexture = false;
 bool useNormalTexture = false;
+bool validNormalTexture = false;
 GLuint textureID = 0;
 GLuint normalTextureID = 0;
 
@@ -345,6 +346,8 @@ uniform bool useTexture;
 uniform sampler2D normalTexture;
 uniform bool useNormalTexture;
 
+uniform bool validNormalTexture;
+
 // Diffuse
 uniform float Id;
 uniform vec3 Kd;
@@ -364,10 +367,10 @@ void main() {
 
 	vec3 normal;
 
-	if (useNormalTexture) {
+	if (useNormalTexture && validNormalTexture) {
 		normal = texture(normalTexture, uv).rgb;
 		normal = normal * 2.0 - 1.0;
-		normal = -normalize(TBN * normal);
+		normal = normalize(TBN * normal);
 	}
 	else {
 		normal = normalize(fNormal);
@@ -516,36 +519,37 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                         texture->magFilter._to_integral());
       }
+    }
 
-      if (useNormalTexture) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, normalTextureID);
+    if (useNormalTexture) {
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D, normalTextureID);
+      log("normal texture valid: {0}\n", validNormalTexture);
 
-        if (OpenGLRenderer::instance->textures.find(normalTextureID) !=
-            OpenGLRenderer::instance->textures.end()) {
-          auto normalTexture =
-              OpenGLRenderer::instance->textures[normalTextureID];
+      if (OpenGLRenderer::instance->textures.find(normalTextureID) !=
+          OpenGLRenderer::instance->textures.end()) {
+        auto normalTexture =
+            OpenGLRenderer::instance->textures[normalTextureID];
+        log("normal Texture FOUND!!!!\n");
+        validNormalTexture = true;
 
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-                          normalTexture->wrapS._to_integral());
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
-                          normalTexture->wrapT._to_integral());
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                          normalTexture->minFilter._to_integral());
-          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                          normalTexture->magFilter._to_integral());
-        }
+        // Get the location of the normal map uniform .
+        GLint normalTextureSamplerLocation =
+            glGetUniformLocation(shader.program, "normalTexture");
+
+        // Set the texture unit index (e.g., 1) to the normal map uniform.
+        glUniform1i(normalTextureSamplerLocation, 1);
       } else {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        validNormalTexture = false;
       }
-    } else {
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     GLint useTexLocation = glGetUniformLocation(shader.program, "useTexture");
     glUniform1i(useTexLocation, (GLint)useTexture);
+
+    // Checker for valid normal texture id.
+    GLint validNormalTextureLocation = glGetUniformLocation(shader.program, "validNormalTexture");
+    glUniform1i(validNormalTextureLocation, (GLint)validNormalTexture);
 
     GLint useNormalTexLocation =
         glGetUniformLocation(shader.program, "useNormalTexture");
