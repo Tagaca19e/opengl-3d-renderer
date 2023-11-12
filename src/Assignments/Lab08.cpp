@@ -14,7 +14,6 @@
 #include "ImGuiFileDialog.h"
 #include "imgui.h"
 
-
 struct OBJMeshVertex {
   vec3 position;
   vec3 normal;
@@ -289,8 +288,10 @@ int activeMeshIndex = 0;
 bool useTexture = false;
 bool useNormalTexture = false;
 bool validNormalTexture = false;
+bool useParallaxTexture = false;
 GLuint textureID = 0;
 GLuint normalTextureID = 0;
+GLuint parallaxTextureID = 0;
 
 // TODO: update the vertex and fragment shaders to use Blinn-Phong shading.
 void Lab08::init() {
@@ -345,8 +346,9 @@ uniform bool useTexture;
 
 uniform sampler2D normalTexture;
 uniform bool useNormalTexture;
-
 uniform bool validNormalTexture;
+uniform bool useParallaxTexture;
+uniform sampler2D heightmapTexture;  // Added for parallax mapping.
 
 // Diffuse
 uniform float Id;
@@ -358,17 +360,48 @@ uniform vec3 Ks;
 
 in vec3 fPos;
 in vec3 fNormal;
-in vec2 uv;
+in vec2 uv; // texture coordinates that is set in the vertex shader.
 in mat3 TBN;
 
 out vec4 FragColor;
 
+vec2 uvCoord = uv;
+
+float heightScale = 0.1f;  // Adjust value to control the intesity.
+
+vec2 parallaxOcclusionMapping(vec2 textCoord, vec3 viewDir) {
+  // TODO(etagaca): Make this into a uniform.
+  float numLayers = 80.0;
+  float height = texture(heightmapTexture, textCoord).r * heightScale;
+  float layerHeight = height / numLayers;
+  vec2 deltaUV = viewDir.xy * height / viewDir.z / numLayers;
+  vec2 currentUV = textCoord;
+
+  for (float i = 0.0; i < numLayers; i++) {
+    currentUV = currentUV - deltaUV;
+    float currentHeight = texture(heightmapTexture, currentUV).r * heightScale;
+
+    // Adjust the threshold for smoother transitions
+    // TODO(etagaca): Make this into a uniform.
+    float threshold = 0.01;
+    if (currentHeight > height + threshold) {
+      return currentUV;
+    }
+  }
+  return textCoord;
+}
+
 void main() {
 
 	vec3 normal;
+  vec3 viewDirection = normalize(cameraPosition - fPos);
+
+  if (useParallaxTexture) {
+    uvCoord = parallaxOcclusionMapping(uvCoord, viewDirection);
+  }
 
 	if (useNormalTexture && validNormalTexture) {
-		normal = texture(normalTexture, uv).rgb;
+		normal = texture(normalTexture, uvCoord).rgb;
 		normal = normal * 2.0 - 1.0;
 		normal = normalize(TBN * normal);
 	}
@@ -382,7 +415,6 @@ void main() {
 	vec3 ambientTerm = Ia * Ka;
 	vec3 diffuseTerm = Id * max(0.0, dot(normal, -lightDirection)) * Kd;
 
-	vec3 viewDirection = normalize(cameraPosition - fPos);
 	vec3 R = reflect(lightDirection, normal);
 
 	// Specular terms for Phong
@@ -397,7 +429,7 @@ void main() {
 	vec4 texColor = vec4(1.0);
 
 	if (useTexture) {
-		texColor = texture(inputTexture, uv);
+    texColor = texture(inputTexture, uvCoord);
 	}
 
 	FragColor = vec4(finalColor * texColor.rgb, 1.0);
@@ -554,16 +586,45 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
       }
     }
 
+    if (useParallaxTexture) {
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, parallaxTextureID);
+
+      if (OpenGLRenderer::instance->textures.find(parallaxTextureID) !=
+          OpenGLRenderer::instance->textures.end()) {
+        auto parallaxTexture =
+            OpenGLRenderer::instance->textures[parallaxTextureID];
+
+        log("parallax texture id: {0}\n", parallaxTextureID);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                        parallaxTexture->wrapS._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                        parallaxTexture->wrapT._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        parallaxTexture->minFilter._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        parallaxTexture->magFilter._to_integral());
+
+        // Set the texture unit index (e.g., 1) to the normal map uniform.
+        glUniform1i(glGetUniformLocation(shader.program, "heightmapTexture"),
+                    2);
+      }
+    }
+
     GLint useTexLocation = glGetUniformLocation(shader.program, "useTexture");
     glUniform1i(useTexLocation, (GLint)useTexture);
 
     // Checker for valid normal texture id.
-    GLint validNormalTextureLocation = glGetUniformLocation(shader.program, "validNormalTexture");
+    GLint validNormalTextureLocation =
+        glGetUniformLocation(shader.program, "validNormalTexture");
     glUniform1i(validNormalTextureLocation, (GLint)validNormalTexture);
 
     GLint useNormalTexLocation =
         glGetUniformLocation(shader.program, "useNormalTexture");
     glUniform1i(useNormalTexLocation, (GLint)useNormalTexture);
+
+    glUniform1i(glGetUniformLocation(shader.program, "useParallaxTexture"),
+                (GLint)useParallaxTexture);
 
     glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT,
                    0);
@@ -585,6 +646,14 @@ void Lab08::renderUI() {
     int texID = normalTextureID;
     if (ImGui::InputInt("Normal Texture ID", &texID)) {
       normalTextureID = texID;
+    }
+  }
+
+  ImGui::Checkbox("Use parallax texture", &useParallaxTexture);
+  if (useParallaxTexture) {
+    int texID = parallaxTextureID;
+    if (ImGui::InputInt("Parallax Texture ID", &texID)) {
+      parallaxTextureID = texID;
     }
   }
 
