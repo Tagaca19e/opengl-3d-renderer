@@ -285,13 +285,18 @@ std::vector<OBJMesh> meshes;
 
 int activeMeshIndex = 0;
 
+int parallaxLayers = 10;
+float displacementScale = 0.0f;
+
 bool useTexture = false;
 bool useNormalTexture = false;
 bool validNormalTexture = false;
 bool useParallaxTexture = false;
+bool useDisplacementMap = false;
 GLuint textureID = 0;
 GLuint normalTextureID = 0;
 GLuint parallaxTextureID = 0;
+GLuint displacementMapID = 0;
 
 // TODO: update the vertex and fragment shaders to use Blinn-Phong shading.
 void Lab08::init() {
@@ -302,6 +307,13 @@ __VERSION__
 uniform mat4 mvp;
 uniform mat4 model;
 uniform mat4 normalMatrix;
+
+uniform sampler2D displacementMap;  // Added for displacement mapping.
+uniform bool useDisplacementMap;
+uniform float displacementScale;
+
+// TODO(etagaca): Make this into a uniform.
+float displacementBias = 0.0;
 
 in vec3 vPosition;
 in vec3 vNormal;
@@ -324,8 +336,16 @@ void main() {
 	fPos = (model * vec4(vPosition, 1.0)).xyz;
 	fNormal = N;
 	uv = texCoord;
-	
-	gl_Position = mvp * vec4(vPosition, 1.0);
+
+  vec3 temp = vPosition;
+
+  if (useDisplacementMap) {
+    vec4 color = texture(displacementMap, texCoord);
+    vec3 newPosition = vPosition + N * (color.r * displacementScale + displacementBias);
+    temp = newPosition;
+  }
+
+  gl_Position = mvp * vec4(temp, 1.0);
 }
 
 )VERTEXSHADER";
@@ -347,8 +367,14 @@ uniform bool useTexture;
 uniform sampler2D normalTexture;
 uniform bool useNormalTexture;
 uniform bool validNormalTexture;
+
+uniform int parallaxLayers;
 uniform bool useParallaxTexture;
 uniform sampler2D heightmapTexture;  // Added for parallax mapping.
+
+uniform bool useDisplacementMap;
+uniform sampler2D displacementMap;
+uniform float displacementScale;
 
 // Diffuse
 uniform float Id;
@@ -370,14 +396,12 @@ vec2 uvCoord = uv;
 float heightScale = 0.1f;  // Adjust value to control the intesity.
 
 vec2 parallaxOcclusionMapping(vec2 textCoord, vec3 viewDir) {
-  // TODO(etagaca): Make this into a uniform.
-  float numLayers = 80.0;
   float height = texture(heightmapTexture, textCoord).r * heightScale;
-  float layerHeight = height / numLayers;
-  vec2 deltaUV = viewDir.xy * height / viewDir.z / numLayers;
+  float layerHeight = height / parallaxLayers;
+  vec2 deltaUV = viewDir.xy * height / viewDir.z / parallaxLayers;
   vec2 currentUV = textCoord;
 
-  for (float i = 0.0; i < numLayers; i++) {
+  for (float i = 0.0; i < parallaxLayers; i++) {
     currentUV = currentUV - deltaUV;
     float currentHeight = texture(heightmapTexture, currentUV).r * heightScale;
 
@@ -483,9 +507,6 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
   mat4 vp = camera.projection * camera.view;
 
   for (auto &sceneObject : sceneObjects) {
-    /*if (glm::length(vec3(sceneObject.transform.rotation)) > 0.f) {
-            sceneObject.transform.rotation.w += deltaTime;
-    }*/
     mat4 model = sceneObject.transform.getMatrixGLM();
     mat4 mvp = vp * model;
 
@@ -611,6 +632,30 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
       }
     }
 
+    if (useDisplacementMap && useParallaxTexture == false) {
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, displacementMapID);
+
+      if (OpenGLRenderer::instance->textures.find(displacementMapID) !=
+          OpenGLRenderer::instance->textures.end()) {
+        auto displacementMap =
+            OpenGLRenderer::instance->textures[displacementMapID];
+
+        log("Displacement map id: {0}\n", displacementMapID);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                        displacementMap->wrapS._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                        displacementMap->wrapT._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        displacementMap->minFilter._to_integral());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        displacementMap->magFilter._to_integral());
+
+        // Set the texture unit index (e.g., 1) to the normal map uniform.
+        glUniform1i(glGetUniformLocation(shader.program, "displacementMap"), 2);
+      }
+    }
+
     GLint useTexLocation = glGetUniformLocation(shader.program, "useTexture");
     glUniform1i(useTexLocation, (GLint)useTexture);
 
@@ -624,7 +669,16 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
     glUniform1i(useNormalTexLocation, (GLint)useNormalTexture);
 
     glUniform1i(glGetUniformLocation(shader.program, "useParallaxTexture"),
-                (GLint)useParallaxTexture);
+      (GLint)useParallaxTexture);
+
+    glUniform1i(glGetUniformLocation(shader.program, "parallaxLayers"),
+      parallaxLayers);
+
+    glUniform1i(glGetUniformLocation(shader.program, "useDisplacementMap"),
+                (GLint)useDisplacementMap);
+
+    glUniform1f(glGetUniformLocation(shader.program, "displacementScale"),
+                displacementScale);
 
     glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT,
                    0);
@@ -655,6 +709,16 @@ void Lab08::renderUI() {
     if (ImGui::InputInt("Parallax Texture ID", &texID)) {
       parallaxTextureID = texID;
     }
+    ImGui::SliderInt("Parallax layers", &parallaxLayers, 0, 100);
+  }
+
+  ImGui::Checkbox("Use displacement map", &useDisplacementMap);
+  if (useDisplacementMap) {
+    int texID = displacementMapID;
+    if (ImGui::InputInt("Displacement Map ID", &texID)) {
+      displacementMapID = texID;
+    }
+    ImGui::SliderFloat("Displacement scale", &displacementScale, 0.0f, 1.0f);
   }
 
   int numMeshes = meshes.size();
