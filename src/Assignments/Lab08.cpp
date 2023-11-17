@@ -293,10 +293,16 @@ bool useNormalTexture = false;
 bool validNormalTexture = false;
 bool useParallaxTexture = false;
 bool useDisplacementMap = false;
+bool enableTesselation = false;
+bool useWireframe = false;
+
 GLuint textureID = 0;
 GLuint normalTextureID = 0;
 GLuint parallaxTextureID = 0;
 GLuint displacementMapID = 0;
+
+vec3 tesselationOuter = vec3(2);
+vec3 tesselationInner = vec3(2, 0, 0);
 
 // TODO: update the vertex and fragment shaders to use Blinn-Phong shading.
 void Lab08::init() {
@@ -349,6 +355,97 @@ void main() {
 }
 
 )VERTEXSHADER";
+
+  // const char *tessControlShaderSrc = "";
+  // const char* tessEvalShaderSrc = "";
+
+  const char *tessControlShaderSrc = R"(
+  __VERSION__
+  uniform vec3 outerTesselation;
+  uniform vec3 innerTesselation;
+
+  layout(vertices = 3) out;
+
+  in vec3 fPos[];
+  in vec3 fNormal[];
+  in vec2 uv[];
+  in mat3 TBN[];
+
+  out vec3 tc_fPos[];
+  out vec3 tc_fNormal[];
+  out vec2 tc_uv[];
+  out mat3 tc_TBN[];
+
+  void main() {
+    tc_fPos[gl_InvocationID] = fPos[gl_InvocationID];
+    tc_fNormal[gl_InvocationID] = fNormal[gl_InvocationID];
+    tc_uv[gl_InvocationID] = uv[gl_InvocationID];
+    tc_TBN[gl_InvocationID] = TBN[gl_InvocationID];
+
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+
+    gl_TessLevelOuter[0] = outerTesselation[0];
+    gl_TessLevelOuter[1] = outerTesselation[1];
+    gl_TessLevelOuter[2] = outerTesselation[2];
+
+    gl_TessLevelInner[0] = innerTesselation[0];
+  }
+)";
+
+  const char *tessEvalShaderSrc = R"(
+  __VERSION__
+  uniform mat4 mvp;
+  uniform sampler2D displacementMap;  // Added for displacement mapping.
+  uniform bool useDisplacementMap;
+  uniform float displacementScale;
+  layout(triangles, equal_spacing, cw) in;
+
+  in vec3 tc_fPos[];
+  in vec3 tc_fNormal[];
+  in vec2 tc_uv[];
+  in mat3 tc_TBN[];
+
+  out vec3 fPos;
+  out vec3 fNormal;
+  out vec2 uv;
+  out mat3 TBN;
+
+  int displacementBias = 0;
+
+  void main() {
+    float u = gl_TessCoord.x;
+    float v = gl_TessCoord.y;
+    float w = gl_TessCoord.z;
+
+    vec2 texCoord = tc_uv[0] * u + tc_uv[1] * v + tc_uv[2] * w;
+
+    vec4 pos0 = gl_in[0].gl_Position;
+    vec4 pos1 = gl_in[1].gl_Position;
+    vec4 pos2 = gl_in[2].gl_Position;
+
+    vec4 pos = u * pos0 + v * pos1 + w * pos2;
+
+    if (useDisplacementMap) {
+      vec4 color = texture(displacementMap, texCoord);
+      
+      // Use tc_fPos to get the tessellated vertex positions
+      vec3 newPosition = tc_fPos[0] * u + tc_fPos[1] * v + tc_fPos[2] * w;
+
+      // Displace along the normal direction
+      newPosition += tc_fNormal[0] * (color.r * displacementScale + displacementBias);
+
+      // Transform the displaced position to clip space
+      gl_Position = mvp * vec4(newPosition, 1.0);
+    } else {
+      gl_Position = pos;
+    }
+
+    fPos = pos.xyz;
+    fNormal = normalize(tc_TBN[0] * tc_fNormal[0] + tc_TBN[1] * tc_fNormal[1] + tc_TBN[2] * tc_fNormal[2]);
+    uv = texCoord;
+    TBN = tc_TBN[0] * u + tc_TBN[1] * v + tc_TBN[2] * w;
+  }
+)";
 
   const char *Lab08FragmentShaderSrc = R"FRAGMENTSHADER(
 __VERSION__
@@ -461,8 +558,15 @@ void main() {
 
 )FRAGMENTSHADER";
 
-  if (!shader.init(Lab08VertexShaderSrc, Lab08FragmentShaderSrc)) {
-    exit(1);
+  if (enableTesselation) {
+    if (!shader.init(Lab08VertexShaderSrc, Lab08FragmentShaderSrc,
+                     tessControlShaderSrc, tessEvalShaderSrc)) {
+      exit(1);
+    }
+  } else {
+    if (!shader.init(Lab08VertexShaderSrc, Lab08FragmentShaderSrc)) {
+      exit(1);
+    }
   }
 
   // Default sphere mesh
@@ -481,6 +585,11 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
+
+  if (useWireframe) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDisable(GL_CULL_FACE);
+  }
 
   double deltaTime = Application::get().deltaTime;
   double timeSinceStart = Application::get().timeSinceStart;
@@ -669,10 +778,10 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
     glUniform1i(useNormalTexLocation, (GLint)useNormalTexture);
 
     glUniform1i(glGetUniformLocation(shader.program, "useParallaxTexture"),
-      (GLint)useParallaxTexture);
+                (GLint)useParallaxTexture);
 
     glUniform1i(glGetUniformLocation(shader.program, "parallaxLayers"),
-      parallaxLayers);
+                parallaxLayers);
 
     glUniform1i(glGetUniformLocation(shader.program, "useDisplacementMap"),
                 (GLint)useDisplacementMap);
@@ -680,8 +789,25 @@ void Lab08::render(s_ptr<Framebuffer> framebuffer) {
     glUniform1f(glGetUniformLocation(shader.program, "displacementScale"),
                 displacementScale);
 
-    glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT,
-                   0);
+    glUniform3fv(glGetUniformLocation(shader.program, "outerTesselation"), 1,
+                 glm::value_ptr(tesselationOuter));
+
+    glUniform3fv(glGetUniformLocation(shader.program, "innerTesselation"), 1,
+                 glm::value_ptr(tesselationInner));
+
+    if (enableTesselation) {
+      // Set tessellation levels
+      float outerTessLevels[] = {2.0, 2.0, 2.0};
+      float innerTessLevels[] = {2.0};
+      glPatchParameteri(GL_PATCH_VERTICES, 3);
+      glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, outerTessLevels);
+      glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, innerTessLevels);
+      glDrawElements(GL_PATCHES, activeMesh->indices.size(), GL_UNSIGNED_INT,
+                     0);
+    } else {
+      glDrawElements(GL_TRIANGLES, activeMesh->indices.size(), GL_UNSIGNED_INT,
+                     0);
+    }
   }
 }
 
@@ -720,6 +846,22 @@ void Lab08::renderUI() {
     }
     ImGui::SliderFloat("Displacement scale", &displacementScale, 0.0f, 1.0f);
   }
+
+  ImGui::Checkbox("Enable Tesselation", &enableTesselation);
+  int tesselationLevelOuter = tesselationOuter.x;
+  int tesselationLevelInner = tesselationInner.x;
+  if (enableTesselation) {
+    if (ImGui::SliderInt("Tesselation level outer", &tesselationLevelOuter, 2,
+                         100)) {
+      tesselationOuter = vec3(tesselationLevelOuter);
+    }
+    if (ImGui::SliderInt("Tesselation level inner", &tesselationLevelInner, 2,
+                         100)) {
+      tesselationInner = vec3(tesselationLevelInner);
+    }
+  }
+
+  ImGui::Checkbox("Wireframe", &useWireframe);
 
   int numMeshes = meshes.size();
   ImGui::Text("Number of meshes: %d", numMeshes);
