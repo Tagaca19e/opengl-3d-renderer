@@ -87,13 +87,10 @@
     <ClInclude Include="..\headers\Lab07.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\headers\Lab08.h">
+    <ClInclude Include="..\headers\Project.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\headers\GPU.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\headers\Lab10.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -206,14 +203,11 @@
     <ClCompile Include="..\src\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\Assignments\Lab08.cpp">
+    <ClCompile Include="..\src\Assignments\Project.cpp">
       <Filter>Source Files\Assignments</Filter>
     </ClCompile>
     <ClCompile Include="..\src\imgui\ImGuiFileDialog.cpp">
       <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Assignments\Lab10.cpp">
-      <Filter>Source Files\Assignments</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

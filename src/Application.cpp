@@ -24,9 +24,7 @@
 #include "Lab05.h"
 #include "Lab06.h"
 #include "Lab07.h"
-#include "Lab08.h"
-#include "Lab10.h"
-
+#include "Project.h"
 
 void Application::init(GLFWwindow* w)
 {
@@ -64,8 +62,7 @@ void Application::init(GLFWwindow* w)
 	assignments.push_back(std::make_shared<Lab05>());*/
 	//assignments.push_back(std::make_shared<Lab06>());
 	//assignments.push_back(std::make_shared<Lab07>());
-	assignments.push_back(std::make_shared<Lab08>());
-	// assignments.push_back(std::make_shared<RayTracer>());
+	assignments.push_back(std::make_shared<Project>());
 
 	log("Ready to rock!\n");
 }

@@ -22,5 +22,7 @@ namespace StringUtil
 
 	std::string upper(const std::string & str);
 
-	std::string clean(const std::string & str);
+	std::string clean(const std::string& str);
+
+	std::string readText(const char* textFile);
 }
