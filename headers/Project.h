@@ -7,6 +7,7 @@
 class Project : public Assignment {
 public:
   Shader shader;
+  Shader cubemapShader;
 
   Camera camera;
   Lighting light;

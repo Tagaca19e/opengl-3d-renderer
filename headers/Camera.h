@@ -9,6 +9,8 @@ struct Camera {
 	bool cameraOrtho = false;
 	float cameraFOVY = 60.0f;
 	vec2 nearFar = vec2(0.01, 1000);
+	vec3 cameraOrientation = vec3(0.0f, 0.0f, -1.0f);
+	bool useCubemapCamera = true;
 
 	bool useArcBall = true;
 	float hRot = 0.0f;
@@ -23,6 +25,8 @@ struct Camera {
 
 	vec4 viewport;
 
+	void updateOrientation();
+	
 	void update(float width, float height);
 
 	void renderUI();
