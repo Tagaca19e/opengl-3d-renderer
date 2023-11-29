@@ -44,6 +44,11 @@ Texture::Texture(const std::string & fname) : filename(fname) {
             format = GL_RGB;
         }
 
+        if (numChannels == 1) {
+            internalFormat = GL_R32F;
+            format = GL_RED;
+        }
+        
         glGenTextures(1, &id);
         glBindTexture(bindTarget, id);
 

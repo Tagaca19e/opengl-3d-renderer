@@ -181,6 +181,8 @@ struct TriangleMeshAOS {
 struct Shader {
 	GLuint vertexShader = 0;
 	GLuint fragmentShader = 0;
+	GLuint tessControlShader = 0;
+	GLuint tessEvalShader = 0;
 	GLuint program = 0;
 
 	bool compileShader(const char* shaderSrc, GLenum shaderType, GLuint& shader) {
@@ -212,6 +214,15 @@ struct Shader {
 		program = glCreateProgram();
 		glAttachShader(program, vertexShader);
 		glAttachShader(program, fragmentShader);
+
+		if (tessControlShader != 0) {
+			glAttachShader(program, tessControlShader);
+		}
+
+		if (tessEvalShader != 0) {
+			glAttachShader(program, tessEvalShader);
+		}
+
 		glLinkProgram(program);
 		glGetProgramiv(program, GL_LINK_STATUS, &success);
 		if (!success) {
@@ -224,7 +235,8 @@ struct Shader {
 		return true;
 	}
 
-	bool init(const char * vertexShaderSrc, const char * fragmentShaderSrc) {
+	bool init(const char* vertexShaderSrc, const char* fragmentShaderSrc,
+		const char* tessControlShaderSrc = nullptr, const char* tessEvalShaderSrc = nullptr) {
 
 		if (!compileShader(vertexShaderSrc, GL_VERTEX_SHADER, vertexShader)) {
 			if (vertexShader != 0) {
@@ -240,6 +252,26 @@ struct Shader {
 				fragmentShader = 0;
 			}
 			return false;
+		}
+
+		if (tessControlShaderSrc != nullptr) {
+			if (!compileShader(tessControlShaderSrc, GL_TESS_CONTROL_SHADER, tessControlShader)) {
+				if (tessControlShader != 0) {
+					glDeleteShader(tessControlShader);
+					tessControlShader = 0;
+				}
+				return false;
+			}
+		}
+
+		if (tessEvalShaderSrc != nullptr) {
+			if (!compileShader(tessEvalShaderSrc, GL_TESS_EVALUATION_SHADER, tessEvalShader)) {
+				if (tessEvalShader != 0) {
+					glDeleteShader(tessEvalShader);
+					tessEvalShader = 0;
+				}
+				return false;
+			}
 		}
 
 		if (!linkProgram()) {

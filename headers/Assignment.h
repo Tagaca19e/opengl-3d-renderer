@@ -10,6 +10,8 @@ class Assignment {
 	public:
 		bool initialized = false;
 		bool useOpenGL = false;
+		int windowWidth = 0;
+		int windowHeight = 0;
 		std::string name;
 
 		Assignment() {}
