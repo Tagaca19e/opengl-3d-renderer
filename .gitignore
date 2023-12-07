@@ -7,3 +7,4 @@ bin/
 # misc
 .DS_Store
 
+imgui.ini

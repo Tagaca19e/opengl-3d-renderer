@@ -68,13 +68,13 @@ bool useWireframe = false;
  */
 
 // Enables tessellation for finer details for displacement mapping.
-bool useTesselation = true;
+bool useTesselation = false;
 
 // Enables cubemapping but removes all rendered objects and primitives from the
 // scene.
 bool useCubemapping = false;
 
-// ----------------------------------------------------------------------------ss
+// ----------------------------------------------------------------------------
 
 GLuint textureID = 0;
 GLuint normalTextureID = 0;
@@ -197,7 +197,7 @@ void Project::init() {
   if (useCubemapping == false) {
     camera.useCubemapCamera = false;
   }
-  
+
   addSceneObject();
   initialized = true;
 }
@@ -215,9 +215,14 @@ void Project::render(s_ptr<Framebuffer> framebuffer) {
   glDepthFunc(GL_LESS);
   glDisable(GL_CULL_FACE);
 
+  if (useTesselation) {
+    useWireframe = true;
+  }
+
   if (useWireframe) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDisable(GL_CULL_FACE);
+  } else {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   }
 
   double deltaTime = Application::get().deltaTime;
@@ -351,7 +356,7 @@ void Project::render(s_ptr<Framebuffer> framebuffer) {
         auto parallaxTexture =
             OpenGLRenderer::instance->textures[parallaxTextureID];
 
-        log("parallax texture id: {0}\n", parallaxTextureID);
+        log("Parallax texture id: {0}\n", parallaxTextureID);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
                         parallaxTexture->wrapS._to_integral());
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
@@ -470,55 +475,64 @@ void Project::render(s_ptr<Framebuffer> framebuffer) {
  * ----------------------------------------------------------------------------
  */
 void Project::renderUI() {
-  ImGui::Checkbox("Use texture", &useTexture);
-  if (useTexture) {
-    int texID = textureID;
-    if (ImGui::InputInt("Texture ID", &texID)) {
-      textureID = texID;
+  if (useCubemapping == false) {
+    ImGui::Checkbox("Use texture", &useTexture);
+    if (useTexture) {
+      int texID = textureID;
+      if (ImGui::InputInt("Texture ID", &texID)) {
+        textureID = texID;
+      }
     }
-  }
 
-  ImGui::Checkbox("Use normal texture", &useNormalTexture);
-  if (useNormalTexture) {
-    int texID = normalTextureID;
-    if (ImGui::InputInt("Normal Texture ID", &texID)) {
-      normalTextureID = texID;
+    ImGui::Checkbox("Use normal texture", &useNormalTexture);
+    if (useNormalTexture) {
+      int texID = normalTextureID;
+      if (ImGui::InputInt("Normal Texture ID", &texID)) {
+        normalTextureID = texID;
+      }
     }
-  }
 
-  ImGui::Checkbox("Use parallax texture", &useParallaxTexture);
-  if (useParallaxTexture) {
-    int texID = parallaxTextureID;
-    if (ImGui::InputInt("Parallax Texture ID", &texID)) {
-      parallaxTextureID = texID;
+    if (useTesselation == false && useDisplacementMap == false) {
+      ImGui::Checkbox("Use parallax texture", &useParallaxTexture);
+      if (useParallaxTexture) {
+        int texID = parallaxTextureID;
+        if (ImGui::InputInt("Parallax Texture ID", &texID)) {
+          parallaxTextureID = texID;
+        }
+        ImGui::SliderInt("Parallax layers", &parallaxLayers, 0, 100);
+      }
     }
-    ImGui::SliderInt("Parallax layers", &parallaxLayers, 0, 100);
-  }
 
-  ImGui::Checkbox("Use displacement map", &useDisplacementMap);
-  if (useDisplacementMap) {
-    int texID = displacementMapID;
-    if (ImGui::InputInt("Displacement Map ID", &texID)) {
-      displacementMapID = texID;
+    if (useParallaxTexture == false) {
+      ImGui::Checkbox("Use displacement map", &useDisplacementMap);
+      if (useDisplacementMap) {
+        int texID = displacementMapID;
+        if (ImGui::InputInt("Displacement Map ID", &texID)) {
+          displacementMapID = texID;
+        }
+        ImGui::SliderFloat("Displacement scale", &displacementScale, 0.0f,
+                           1.0f);
+      }
     }
-    ImGui::SliderFloat("Displacement scale", &displacementScale, 0.0f, 1.0f);
-  }
 
-  ImGui::Checkbox("Enable Tesselation", &useTesselation);
-  int tesselationLevelOuter = tesselationOuter.x;
-  int tesselationLevelInner = tesselationInner.x;
-  if (useTesselation) {
-    if (ImGui::SliderInt("Tesselation level outer", &tesselationLevelOuter, 2,
-                         100)) {
-      tesselationOuter = vec3(tesselationLevelOuter);
+    if (useTesselation) {
+      ImGui::Checkbox("Enable Tesselation", &useTesselation);
+      int tesselationLevelOuter = tesselationOuter.x;
+      int tesselationLevelInner = tesselationInner.x;
+      if (useTesselation) {
+        if (ImGui::SliderInt("Tesselation level outer", &tesselationLevelOuter,
+                             2, 100)) {
+          tesselationOuter = vec3(tesselationLevelOuter);
+        }
+        if (ImGui::SliderInt("Tesselation level inner", &tesselationLevelInner,
+                             2, 100)) {
+          tesselationInner = vec3(tesselationLevelInner);
+        }
+      }
     }
-    if (ImGui::SliderInt("Tesselation level inner", &tesselationLevelInner, 2,
-                         100)) {
-      tesselationInner = vec3(tesselationLevelInner);
-    }
-  }
 
-  ImGui::Checkbox("Wireframe", &useWireframe);
+    ImGui::Checkbox("Wireframe", &useWireframe);
+  }
 
   int numMeshes = meshes.size();
   ImGui::Text("Number of meshes: %d", numMeshes);
