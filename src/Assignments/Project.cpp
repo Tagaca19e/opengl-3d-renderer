@@ -10,6 +10,7 @@
 #include "StringUtil.h"
 #include "Texture.h"
 #include "UIHelpers.h"
+#include "filesystem"
 
 #include "ImGuiFileDialog.h"
 #include "OBJMesh.h"
@@ -90,18 +91,22 @@ unsigned int cubemapTexture;
 #include <stdexcept>
 
 void Project::init() {
-  // Load shaders.
-  std::string vertexCode = StringUtil::readText("src/shaders/vertex.vert");
-  std::string fragmentCode = StringUtil::readText("src/shaders/fragment.frag");
+  std::string parentDir =
+    (std::filesystem::current_path().parent_path()).string();
+
+  std::string vertexCode =
+    StringUtil::readText((parentDir + "/src/shaders/vertex.vert").c_str());
+  std::string fragmentCode =
+    StringUtil::readText((parentDir + "/src/shaders/fragment.frag").c_str());
   std::string tessControlCode =
-      StringUtil::readText("src/shaders/tessellation.tesc");
+    StringUtil::readText((parentDir + "/src/shaders/tessellation.tesc").c_str());
   std::string tessEvalCode =
-      StringUtil::readText("src/shaders/tessellation.tese");
+    StringUtil::readText((parentDir + "/src/shaders/tessellation.tese").c_str());
 
   std::string cubemapVertexCode =
-      StringUtil::readText("src/shaders/cubemap.vert");
+    StringUtil::readText((parentDir + "/src/shaders/cubemap.vert").c_str());
   std::string cubemapFragmentCode =
-      StringUtil::readText("src/shaders/cubemap.frag");
+    StringUtil::readText((parentDir + "/src/shaders/cubemap.frag").c_str());
 
   const char *ProjectVertexShaderSrc = vertexCode.c_str();
   const char *ProjectFragmentShaderSrc = fragmentCode.c_str();
@@ -151,11 +156,6 @@ void Project::init() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    std::string parentDir =
-        (std::filesystem::current_path().std::filesystem::path::parent_path())
-            .string();
-    parentDir += "/3480-projectv2";
 
     std::string facesCubemap[6] = {
         parentDir + "/textures/environment_maps/right.jpg",
