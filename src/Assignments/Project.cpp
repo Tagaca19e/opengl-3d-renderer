@@ -92,21 +92,26 @@ unsigned int cubemapTexture;
 
 void Project::init() {
   std::string parentDir =
-    (std::filesystem::current_path().parent_path()).string();
+      (std::filesystem::current_path().parent_path()).string();
+
+  // Enable for MacOS.
+  // parentDir += "/texture-mapping";
+
+  log("Parent dir {0}\n", parentDir.c_str());
 
   std::string vertexCode =
-    StringUtil::readText((parentDir + "/src/shaders/vertex.vert").c_str());
+      StringUtil::readText((parentDir + "/src/shaders/vertex.vert").c_str());
   std::string fragmentCode =
-    StringUtil::readText((parentDir + "/src/shaders/fragment.frag").c_str());
-  std::string tessControlCode =
-    StringUtil::readText((parentDir + "/src/shaders/tessellation.tesc").c_str());
-  std::string tessEvalCode =
-    StringUtil::readText((parentDir + "/src/shaders/tessellation.tese").c_str());
+      StringUtil::readText((parentDir + "/src/shaders/fragment.frag").c_str());
+  std::string tessControlCode = StringUtil::readText(
+      (parentDir + "/src/shaders/tessellation.tesc").c_str());
+  std::string tessEvalCode = StringUtil::readText(
+      (parentDir + "/src/shaders/tessellation.tese").c_str());
 
   std::string cubemapVertexCode =
-    StringUtil::readText((parentDir + "/src/shaders/cubemap.vert").c_str());
+      StringUtil::readText((parentDir + "/src/shaders/cubemap.vert").c_str());
   std::string cubemapFragmentCode =
-    StringUtil::readText((parentDir + "/src/shaders/cubemap.frag").c_str());
+      StringUtil::readText((parentDir + "/src/shaders/cubemap.frag").c_str());
 
   const char *ProjectVertexShaderSrc = vertexCode.c_str();
   const char *ProjectFragmentShaderSrc = fragmentCode.c_str();

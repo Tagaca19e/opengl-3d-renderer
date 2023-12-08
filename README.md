@@ -10,6 +10,8 @@ Please see the steps below on how to run the program.
 
 #### Running on MacOS
 
+There was a problem with loading some of the shaders in macOS. For you to fix this, please uncomment the code on `line 98` in `Project.cpp`.
+
 ```bash
 # Run compile and execute file
 ./blaze_mac.sh
