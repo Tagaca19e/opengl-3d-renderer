@@ -32,17 +32,17 @@ For Windows: You would need to use Visual Studio 2019 to run the program.
 - Load model under `Assignments > Project`. Under the `models` directory use the model `plane_face_front.obj`. The scene will be dark since the lighting is not in the right direction.
 - Switch the lighting direction under `Assignments > Project > Lighting` to `0.000`, `-1.000`, `-1.000` to light up the surface of the plane.
 - Under `OpenGL Renderer > Textures` load new textures. Specifically `wall_diffuse.png`, `wall_normal.png`, and `wall_displacement.png`. These textures are all under the textures directory.
-- Under `Assignments > Project` enable each texture and type in the appropriate textuer id for each Texture ID field. Note, You must have a texture and a normal texture for parallax or displacement mapping to work (This is about the location of the textures since it is hard coded).
+- Under `Assignments > Project` enable each texture and type in the appropriate texture id for each Texture ID field. Note, You must have a texture and a normal texture for parallax or displacement mapping to work (This is about the location of the textures since it is hard coded).
 - After that feel free to mess with the controls for the displacement scale and parallax layers.
 
 ### Testing Tessellation
 
-- On the source code itself in `Project.cpp` on `line 71` feel free to flip the variable `useTessellation` to `true`. Then run the recompile and execute bash script.
-- As for adding the model and adding textures please follow all the steps above but the model that should be loaded is `plane_4x4.obj` to make sure that we only have a few vertices for the model.
+- On the source code itself in `Project.cpp` on `line 71` feel free to flip the variable `useTessellation` to `true`. Then rerun the program.
+- As for adding the model and adding textures please follow all the steps above but the model that should be loaded is `plane_4x4.obj` since we only want a model to have a few vertices.
 - Once the model and textures are loaded, feel free to mess with the `Tessellation inner` and `Tessellation outer` levels.
 
 ### Testing cube mapping
 
 - On the source code in `Project.cpp` on `line 71` set `useTessellation` to `false` after setting it to `true`, then on `line 75` set `useCubemapping` to `true`.
-- Then run and compile using the provided bash script.
+- Rerun the program.
 - After the program is running, feel free to hold your mouse then move around.
