@@ -61,10 +61,10 @@ For Windows: You would need to use Visual Studio 2019 to run the program.
 https://github.com/Tagaca19e/texture-mapping/assets/85138779/ee367c66-36b9-4508-81f7-cf6fb3466f1a
 
 ### Tessellation
-TODO(etagaca): Fix video display.
 
-https://github.com/Tagaca19e/texture-mapping/assets/85138779/29705b09-bc6c-450a-b9dd-61d28d1c2e9f
-https://github.com/Tagaca19e/texture-mapping/assets/85138779/7242a5dd-99dd-41d3-9618-3ac83641011b
+https://github.com/Tagaca19e/texture-mapping/assets/85138779/537c83e7-7342-49c9-95d8-27fc70cdbc9f
+
+https://github.com/Tagaca19e/texture-mapping/assets/85138779/5ffb7265-f6c1-49a1-8d7f-d6f40806299a
 
 ### Skybox
 https://github.com/Tagaca19e/texture-mapping/assets/85138779/07ca1d60-afce-45c9-a932-09ca88f51c58
